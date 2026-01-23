@@ -16,7 +16,7 @@ func NewEngine() *Engine {
 func (e *Engine) Run(ctx model.Context) ([]model.Finding, error) {
 	var drifts []model.Drift
 
-	branchDrift, err := analyzers.AnalyzeBranch(ctx.Base)
+	branchDrift, err := analyzers.AnalyzeBranch(ctx)
 	if err != nil {
 		return nil, err
 	}

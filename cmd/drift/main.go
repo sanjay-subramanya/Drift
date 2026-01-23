@@ -13,9 +13,11 @@ var (
 	jsonOut bool
 	jsonPath string
 	base string
+	upstreamURL string
 )
 
 func init() {
+	flag.StringVar(&upstreamURL, "upstream-url", "", "URL of the original (upstream) repository")
 	flag.StringVar(&base, "base", "origin/main", "Base branch to compare against")
 	flag.BoolVar(&jsonOut, "json", false, "Output results as JSON")
 	flag.StringVar(&jsonPath, "path", "drift.json", "Path to write JSON output")
@@ -29,6 +31,7 @@ func main() {
 	eng := engine.NewEngine()
 
 	ctx.Base = base
+	ctx.UpstreamURL = upstreamURL
 	ctx.JSON = jsonOut
 	ctx.JSONPath = jsonPath
 	

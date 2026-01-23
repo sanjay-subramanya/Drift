@@ -11,41 +11,56 @@ import (
 	"strconv"
 )
 
-func AnalyzeBranch(base string) ([]model.Drift, error) {
-	if _, err := git.RunGit("rev-parse", "--verify", "--quiet", base); err != nil {
-		return nil, fmt.Errorf("Base branch \"%s\" does not exist", base)
+func AnalyzeBranch(ctx model.Context) ([]model.Drift, error) {
+	baseBranch := ctx.Base
+	upstreamURL := ctx.UpstreamURL
+	if after, ok := strings.CutPrefix(baseBranch, "origin/"); ok  {
+		baseBranch = after
 	}
-	_, _ = git.RunGit("fetch", "origin")
+	compareRef := baseBranch
+	isFork := false
+	
+	if upstreamURL == "" {
+		compareRef = "origin/" + baseBranch
+		if _, err := git.RunGit("rev-parse", "--verify", "--quiet", compareRef); err != nil {
+			return nil, fmt.Errorf("Base branch \"%s\" does not exist", compareRef)
+		}
+		if _, err := git.RunGit("fetch", "origin"); err != nil {
+			return nil, fmt.Errorf("Failed to fetch origin: %w", err)
+		}
+	} else {
+		if !strings.HasSuffix(upstreamURL, ".git") {
+			upstreamURL += ".git"
+		}
+		if _, err := git.RunGit("fetch", upstreamURL, compareRef); err != nil {
+			return nil, fmt.Errorf("Failed to fetch upstream %s: %w", upstreamURL, err)
+		}
+		isFork = true
+		compareRef = "FETCH_HEAD"
+	}
 
-	mergeBase, err := git.MergeBase("HEAD", base)
+	mergeBase, err := git.MergeBase("HEAD", compareRef)
 	if err != nil {
 		return nil, err
 	}
 
-	behind, err := git.CommitsBehind("HEAD", base)
+	behind, err := git.CommitsBehind("HEAD", compareRef)
 	if err != nil {
 		return nil, err
 	}
-
 	if behind == 0 {
 		return nil, nil
 	}
 
-	upstreamFiles, err := git.UpstreamFiles(mergeBase, base)
+	upstreamFiles, err := git.UpstreamFiles(mergeBase, compareRef, isFork)
 	if err != nil {
 		return nil, err
 	}
 
-	localDirty, err := git.DirtyFiles()
+	localDirty, err := git.LocalChanges(mergeBase)
 	if err != nil {
 		return nil, err
 	}
-
-	// localFilesOut, err := git.RunGit("ls-files")
-	if err != nil {
-		return nil, err
-	}
-	// localTracked := strings.Split(localFilesOut, "\n")
 
 	ignores := config.LoadIgnoreFile()
 
@@ -63,7 +78,7 @@ func AnalyzeBranch(base string) ([]model.Drift, error) {
 
 		switch {
 		// file exists locally (dirty)
-		case slices.Contains(localDirty, f):
+		case slices.Contains(localDirty, f) && slices.Contains(upstreamFiles, f):
 			critical = append(critical, f)
 
 		// env / docker / deployment files
@@ -76,24 +91,26 @@ func AnalyzeBranch(base string) ([]model.Drift, error) {
 
 		// everything else
 		default:
-			low = append(low, f)
+			if !isFork {
+				low = append(low, f)
+			}
 		}
 	}
 
 	var lines []string
-	lines = append(lines, "branch behind by "+strconv.Itoa(behind)+" commits;")
+	lines = append(lines, "branch behind by "+ strconv.Itoa(behind) +" commits;")
 
 	if len(critical) > 0 {
 		lines = append(lines,
-			"[CRITICAL] files YOU are editing changed upstream: "+stringJoin(critical))
+			"[CRITICAL] files YOU are editing changed upstream: "+ stringJoin(critical))
 	}
 	if len(high) > 0 {
 		lines = append(lines,
-			"[HIGH] deployment / dependency files changed upstream: "+stringJoin(high))
+			"[HIGH] deployment / dependency files changed upstream: "+ stringJoin(high))
 	}
 	if len(low) > 0 {
 		lines = append(lines,
-			"[LOW] other files changed upstream: "+stringJoin(low))
+			"[LOW] other files changed upstream: "+ stringJoin(low))
 	}
 
 	return []model.Drift{

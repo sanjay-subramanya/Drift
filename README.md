@@ -1,7 +1,8 @@
 # Drift CLI
 
-**Drift** is a lightweight, high-performance CLI tool designed to detect "code drift" between your local environment and upstream branches. It identifies stale files and categorizes changes by severity before you even attempt a `git pull`.
-
+**Drift** is a lightweight, high-performance CLI tool designed to detect "code drift" between your local environment and upstream branches. It identifies stale files and categorizes changes by severity before you even attempt a `git pull`. It can compare staleness across:
+- **Any Remote Branch**: Comparing your local changes (unstaged/staged) against any remote branch.
+- **Forked Repositories**: Detecting local changes from the original upstream repository (not just your personal fork).
 
 
 ## Why Drift?
@@ -13,15 +14,18 @@ In fast-moving repositories, your local branch can become "stale" within hours. 
 - 🤖 **CI/CD Ready**: Supports `--json` output for automated pipeline gates.
 - 🔌 **Extensible**: Powering the [GitDrift VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sanjay-subramanya.gitdrift).
 
----
 
 ## 🛡️ Conflict Prediction
 
 One of Drift's most powerful features is its ability to **predict merge conflicts** before they happen. 
 
-By cross-referencing upstream changes with your currently modified (unstaged/staged) files, Drift flags potential "Collision Zones." If a file you are currently editing has been modified on the server, Drift marks it as **[CRITICAL]**, allowing you to rebase or communicate with teammates before you deal with a messy manual merge.
+By cross-referencing upstream changes with your currently modified (unstaged/staged) files, Drift flags potential "Collision Zones." If a file you are currently editing has been modified on the server, Drift marks it as *[CRITICAL]*, allowing you to rebase or communicate with teammates before you deal with a messy manual merge.
 
----
+
+## 🌳 Cross-Fork Detection
+
+If you are working on a local clone of a forked open-source project, Drift can compare your local changes against the *original upstream repository's base branch* (e.g., `main` or `master`), not just your personal fork's upstream. This allows you to proactively identify stale files or potential overlaps with the main project before you even consider submitting a pull request, ensuring your contributions are always up-to-date and conflict-free.
+
 
 ## Installation
 
@@ -77,11 +81,18 @@ Once installed, you can use Drift in any Git repository. Simply navigate to your
 drift
 ```
 Drift will analyze the current branch with respect to the remote branch (default: `origin/main`) and report any detected code drift. If there are any conflicts, it will flag them with severity levels.
-If you want to analyze a different branch, you can use the `--base` flag:
+If you want to analyze a different branch, you can use the `--base flag:
 
 ```bash
 drift --base branch_name
 ```
+
+If you are working on a forked repository, you can use the `--upstream-url` flag to specify the original upstream repository's URL. This allows Drift to compare your local changes against the base branch of the upstream repository.
+
+ ```bash
+drift --upstream-url https://github.com/original-owner/original-repo.git --base branch_name
+```
+
 
 For storing the output in a JSON file, you can use the `--json` flag and specify the path (default: `./drift.json`):
 

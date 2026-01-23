@@ -1,7 +1,7 @@
 package model
 
 type Context struct {
-	RepoPath string
+	UpstreamURL string
 	Base     string
 	JSON     bool
 	JSONPath string
@@ -9,7 +9,7 @@ type Context struct {
 
 func NewContext() Context {
 	return Context{
-		RepoPath: ".",
+		UpstreamURL: "",
 		Base:     "origin/main",
 		JSON:     false,
 		JSONPath: "drift.json",
